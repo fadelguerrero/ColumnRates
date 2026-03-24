@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Column Reinforcement Rate Estimator (v2.2)</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --panel-soft: #f8fbff;
+      --line: #d7e3ee;
+      --line-2: #c9d7e3;
+      --text: #0f172a;
+      --muted: #5b6878;
+      --accent: #0ea5e9;
+      --accent-2: #0284c7;
+      --accent-soft: #e0f2fe;
+      --ok: #15803d;
+      --warn: #b45309;
+      --warn-bg: #fff7ed;
+      --warn-line: #fed7aa;
+      --danger: #dc2626;
+      --danger-soft: #fef2f2;
+      --shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: auto;
+    }
+
+    body.modal-open { overflow: hidden; }
+
+    .wrap {
+      width: min(1760px, calc(100% - 14px));
+      height: auto;
+      margin: 6px auto 12px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 8px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 4px 2px;
+    }
+
+    .title-wrap { min-width: 0; }
+    h1, h2, h3 { margin: 0; }
+    h1 {
+      font-size: 1.36rem;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    h2 {
+      font-size: 0.96rem;
+      letter-spacing: -0.01em;
+    }
+    h3 {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 370px minmax(0, 1fr);
+      gap: 10px;
+      min-height: 0;
+      align-items: start;
+    }
+
+    .left-stack {
+      display: grid;
+      grid-template-rows: auto auto;
+      gap: 10px;
+      align-content: start;
+      min-height: 0;
+    }
+
+    .right-stack {
+      display: grid;
+      grid-template-rows: auto auto;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 8px;
+      box-shadow: var(--shadow);
+      min-height: 0;
+    }
+
+    .left-card {
+      overflow: visible;
+    }
+
+    .card-head,
+    .section-head,
+    .schedule-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .shape-toggle {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .shape-btn,
+    .icon-btn,
+    .btn,
+    .btn-mini {
+      appearance: none;
+      border: 1px solid var(--line-2);
+      background: #ffffff;
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .shape-btn:hover,
+    .icon-btn:hover,
+    .btn:hover,
+    .btn-mini:hover {
+      transform: translateY(-1px);
+    }
+
+    .shape-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.96rem;
+      font-weight: 800;
+      color: var(--muted);
+    }
+
+    .shape-btn.active {
+      background: var(--accent-soft);
+      color: var(--text);
+      border-color: rgba(14, 165, 233, 0.46);
+    }
+
+    .icon-btn {
+      padding: 7px 10px;
+      border-radius: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .btn,
+    .btn-mini {
+      border-radius: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .btn {
+      padding: 6px 8px;
+    }
+
+    .btn-mini {
+      padding: 4px 7px;
+      font-size: 0.68rem;
+    }
+
+    .shape-btn:disabled,
+    .icon-btn:disabled,
+    .btn:disabled,
+    .btn-mini:disabled {
+      opacity: 0.42;
+      cursor: default;
+      transform: none !important;
+    }
+
+    .move-btn {
+      min-width: 24px;
+      padding-left: 5px;
+      padding-right: 5px;
+      font-size: 0.8rem;
+      line-height: 1;
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      color: #ffffff;
+      border-color: transparent;
+    }
+
+    .btn-danger {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border-color: rgba(220, 38, 38, 0.22);
+    }
+
+    .compact-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 6px;
+      align-items: end;
+    }
+
+    .span-1 { grid-column: span 1; }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-6 { grid-column: span 6; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+    .span-9 { grid-column: span 9; }
+    .span-12 { grid-column: 1 / -1; }
+
+    label {
+      display: block;
+      font-size: 0.66rem;
+      color: var(--muted);
+      margin-bottom: 3px;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--line-2);
+      background: #ffffff;
+      color: var(--text);
+      padding: 5px 7px;
+      font: inherit;
+      min-height: 30px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 54px;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 3px solid rgba(14, 165, 233, 0.14);
+      border-color: var(--accent);
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type=number] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    .inline-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      padding: 0 1px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .subhead-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 0;
+    }
+
+    .recalc-flag {
+      font-size: 0.68rem;
+      color: var(--danger);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      visibility: hidden;
+      white-space: nowrap;
+    }
+
+    .recalc-flag.show {
+      visibility: visible;
+    }
+
+    .inline-check input {
+      width: 16px;
+      height: 16px;
+      min-height: 16px;
+      margin: 0;
+      padding: 0;
+      border-radius: 4px;
+    }
+
+    .field-block {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+
+    .field-block:first-of-type {
+      border-top: 0;
+      padding-top: 0;
+      margin-top: 0;
+    }
+
+    .actions-row,
+    .export-row,
+    .schedule-tools {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .schedule-tools {
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .actions-row .btn,
+    .export-row .btn-mini { flex: 1 1 auto; }
+
+    .warning,
+    .tiny-note {
+      font-size: 0.78rem;
+      line-height: 1.4;
+      border-radius: 11px;
+      padding: 7px 8px;
+      margin-top: 8px;
+    }
+
+    .warning {
+      color: var(--warn);
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-line);
+    }
+
+    .tiny-note {
+      color: var(--muted);
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+    }
+
+    .hidden { display: none !important; }
+
+    .sketch-card {
+      margin-top: 10px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .sketch-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(150px, 0.95fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .section-sketch,
+    .table-wrap,
+    .mini-summary,
+    .metric {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #ffffff 0%, var(--panel-soft) 100%);
+      border-radius: 13px;
+    }
+
+    .section-sketch {
+      min-height: 210px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      overflow: auto;
+    }
+
+    .section-sketch.empty {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-align: center;
+    }
+
+    .section-sketch svg {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+
+    .section-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      margin-top: 6px;
+      font-size: 0.66rem;
+      color: var(--muted);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-line {
+      width: 16px;
+      height: 0;
+      border-top: 2px solid rgba(71, 85, 105, 0.75);
+      display: inline-block;
+    }
+
+    .legend-swatch {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      display: inline-block;
+      border: 1px solid rgba(2, 132, 199, 0.28);
+    }
+
+    .mini-summary {
+      padding: 6px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 5px 8px;
+      align-content: start;
+    }
+
+    .mini-cell {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 5px 6px;
+      min-height: 0;
+    }
+
+    .mini-cell .k,
+    .metric .k {
+      font-size: 0.68rem;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+
+    .mini-cell .v {
+      font-size: 0.78rem;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .results-grid,
+    .summary-band,
+    .current-tables {
+      display: grid;
+      gap: 8px;
+    }
+
+    .results-grid,
+    .summary-band { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .current-tables { grid-template-columns: 340px 1fr; }
+
+    .design-panels {
+      display: grid;
+      grid-template-columns: minmax(340px, 1.4fr) minmax(220px, 1fr) minmax(220px, 1fr);
+      gap: 8px;
+      align-items: start;
+      margin-top: 8px;
+    }
+
+    .sketch-panel .section-sketch {
+      height: min(50vh, 340px);
+      min-height: min(50vh, 340px);
+      max-height: min(50vh, 340px);
+      padding: 8px;
+      overflow: hidden;
+    }
+
+    .sketch-info-grid {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 5px 8px;
+      font-size: 0.67rem;
+    }
+
+    .sketch-info-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 6px;
+      align-items: baseline;
+      padding: 4px 6px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+    }
+
+    .sketch-info-item .k {
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      font-size: 0.63rem;
+    }
+
+    .sketch-info-item .v {
+      font-weight: 800;
+      font-size: 0.74rem;
+      line-height: 1.2;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .actions-inline {
+      display: inline-flex;
+      gap: 4px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+
+    .schedule {
+      overflow-x: auto;
+      overflow-y: visible;
+      min-height: 0;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .schedule-card {
+      display: block;
+      min-height: 0;
+    }
+
+    .steel-breakdown-card {
+      margin-top: 8px;
+    }
+
+    .metric {
+      padding: 8px;
+    }
+
+    .metric .v {
+      font-size: 0.96rem;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .table-wrap {
+      padding: 6px 8px;
+    }
+
+    .breakdown-table,
+    .schedule table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 5px 5px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      line-height: 1.3;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 700;
+      background: #f8fbff;
+    }
+
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      border: 1px solid rgba(14, 165, 233, 0.24);
+      color: #075985;
+      font-size: 0.74rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .pill.fc-40 {
+      background: #dcfce7;
+      border-color: #86efac;
+      color: #166534;
+    }
+
+    .pill.fc-50 {
+      background: #cffafe;
+      border-color: #67e8f9;
+      color: #0e7490;
+    }
+
+    .pill.fc-65 {
+      background: #fef9c3;
+      border-color: #fde047;
+      color: #854d0e;
+    }
+
+    .pill.fc-80 {
+      background: #ffedd5;
+      border-color: #fdba74;
+      color: #9a3412;
+    }
+
+    .pill.fc-100 {
+      background: #fee2e2;
+      border-color: #fca5a5;
+      color: #991b1b;
+    }
+
+    .contingency-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .contingency-inline label {
+      margin: 0;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .contingency-inline select {
+      width: auto;
+      min-width: 76px;
+      min-height: 28px;
+      padding: 4px 24px 4px 8px;
+      font-size: 0.72rem;
+      border-radius: 9px;
+    }
+
+    .trash-btn {
+      font-size: 0.82rem;
+      min-width: 28px;
+      line-height: 1;
+    }
+
+    .copy-btn {
+      min-width: 28px;
+      font-size: 0.82rem;
+      line-height: 1;
+    }
+
+    .tiny {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.42);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      z-index: 20;
+    }
+
+    .modal {
+      width: min(760px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+      padding: 12px;
+    }
+
+    .modal p,
+    .modal li {
+      font-size: 0.86rem;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    .modal ul {
+      margin: 10px 0 0 18px;
+      padding: 0;
+    }
+
+    @media (max-width: 1380px) {
+      .grid { grid-template-columns: 360px minmax(0, 1fr); }
+      .design-panels { grid-template-columns: 1.3fr 1fr 1fr; }
+    }
+
+    @media (max-width: 1180px) {
+      body { overflow: auto; }
+      .wrap { height: auto; }
+      .grid { grid-template-columns: 1fr; }
+      .right-stack { grid-template-rows: auto auto; }
+      .left-card { overflow: visible; }
+      .design-panels { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .results-grid,
+      .summary-band,
+      .design-panels,
+      .sketch-row,
+      .mini-summary,
+      .sketch-info-grid { grid-template-columns: 1fr; }
+      .compact-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      .span-7, .span-8, .span-9, .span-12 { grid-column: span 6; }
+      .span-6 { grid-column: span 6; }
+      .span-5 { grid-column: span 3; }
+      .span-4 { grid-column: span 3; }
+      .span-3 { grid-column: span 3; }
+      .span-2 { grid-column: span 2; }
+      .span-1 { grid-column: span 1; }
+    }
+
+
+    /* --- Style sync: Reinforced Pad Footing Design - AS3600-2018 --- */
+    :root {
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --panel-soft: #f3f7fb;
+      --line: #e2e8f0;
+      --line-2: #d1d5db;
+      --text: #212529;
+      --muted: #6c757d;
+      --accent: #0d6efd;
+      --accent-2: #0b5ed7;
+      --accent-soft: #e8f0fe;
+      --ok: #198754;
+      --warn: #b45309;
+      --warn-bg: #fff7ed;
+      --warn-line: #fed7aa;
+      --danger: #dc3545;
+      --danger-soft: #fbe9ec;
+      --shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--text);
+    }
+
+    .wrap {
+      width: min(1760px, calc(100% - 20px));
+      margin: 10px auto 12px;
+      gap: 10px;
+    }
+
+    .topbar {
+      padding: 0;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    h1 {
+      color: var(--accent);
+      font-size: 1.2em;
+      line-height: 1.2;
+      letter-spacing: 0;
+      margin: 4px 0 6px 0;
+      font-weight: 700;
+    }
+
+    h2 {
+      color: var(--accent);
+      font-size: 0.85em;
+      line-height: 1.2;
+      letter-spacing: 0;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    h3,
+    .subtitle,
+    .tiny,
+    .contingency-inline,
+    .contingency-inline label,
+    .mini-cell .k,
+    .metric .k,
+    .sketch-info-item .k,
+    .section-legend,
+    label {
+      color: var(--text);
+    }
+
+    h3 {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      font-weight: 600;
+    }
+
+    .subtitle,
+    .tiny {
+      font-size: 0.8em;
+    }
+
+    .grid,
+    .right-stack,
+    .design-panels,
+    .results-grid,
+    .summary-band,
+    .current-tables,
+    .compact-grid,
+    .sketch-row,
+    .actions-row,
+    .export-row,
+    .schedule-tools {
+      gap: 8px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-head,
+    .section-head,
+    .schedule-head {
+      margin-bottom: 6px;
+    }
+
+    .field-block {
+      border-top: 1px solid var(--line);
+      padding-top: 6px;
+      margin-top: 6px;
+    }
+
+    .shape-btn,
+    .icon-btn,
+    .btn,
+    .btn-mini {
+      border: none;
+      border-radius: 4px;
+      box-shadow: none;
+      background: var(--accent);
+      color: #ffffff;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transform: none !important;
+    }
+
+    .shape-btn:hover,
+    .icon-btn:hover,
+    .btn:hover,
+    .btn-mini:hover {
+      background: var(--accent-2);
+    }
+
+    .shape-btn {
+      width: 30px;
+      height: 30px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #ffffff;
+      background: var(--secondary-col, #6c757d);
+    }
+
+    .shape-btn.active {
+      background: var(--accent);
+      color: #ffffff;
+      border: none;
+    }
+
+    .btn,
+    .icon-btn {
+      padding: 5px 10px;
+      min-height: 30px;
+    }
+
+    .btn-mini,
+    .move-btn,
+    .trash-btn {
+      padding: 3px 6px;
+      min-height: 24px;
+      font-size: 0.72rem;
+      line-height: 1.2;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #ffffff;
+      border: none;
+    }
+
+    .btn-danger:hover {
+      background: #bb2d3b;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-2);
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 6px;
+      font-size: 0.8em;
+      font-weight: 500;
+      line-height: 1.25;
+    }
+
+    input,
+    select,
+    textarea {
+      border-radius: 4px;
+      border: 1px solid var(--line-2);
+      background: #ffffff;
+      color: var(--text);
+      padding: 5px 7px;
+      font-size: 0.85rem;
+      min-height: 30px;
+      box-shadow: none;
+    }
+
+    textarea {
+      min-height: 56px;
+      resize: vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.12);
+    }
+
+    .inline-check {
+      min-height: 30px;
+      padding: 0;
+      font-size: 0.8em;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .inline-check input {
+      width: 16px;
+      height: 16px;
+      min-height: 16px;
+    }
+
+    .warning,
+    .tiny-note,
+    .mini-cell,
+    .metric,
+    .section-sketch,
+    .table-wrap,
+    .mini-summary,
+    .sketch-info-item,
+    .schedule {
+      border-radius: 4px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      box-shadow: none;
+    }
+
+    .tiny-note {
+      background: var(--panel-soft);
+    }
+
+    .warning {
+      font-size: 0.8em;
+    }
+
+    .section-sketch {
+      background: #ffffff;
+      padding: 8px;
+    }
+
+    .mini-summary {
+      padding: 6px;
+    }
+
+    .mini-cell,
+    .metric,
+    .sketch-info-item {
+      padding: 5px 6px;
+      border-radius: 4px;
+    }
+
+    .mini-cell .v,
+    .sketch-info-item .v {
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .metric .v {
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .breakdown-table,
+    .schedule table {
+      background: #ffffff;
+      font-size: 0.8em;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 4px 5px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--accent);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .schedule tbody tr:nth-child(even),
+    .breakdown-table tbody tr:nth-child(even) {
+      background: var(--panel-soft);
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+
+    .table-wrap {
+      padding: 6px;
+    }
+
+    .contingency-inline select {
+      border-radius: 4px;
+      min-height: 28px;
+      font-size: 0.8em;
+      padding: 4px 24px 4px 8px;
+    }
+
+    .recalc-flag {
+      font-size: 0.75em;
+      font-weight: 700;
+      color: var(--danger);
+    }
+
+    .legend-swatch {
+      border-radius: 999px;
+      border: 1px solid rgba(13, 110, 253, 0.2);
+    }
+
+    .legend-line {
+      border-top-color: #34495e;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title-wrap">
+        <h1>Column Reinforcement Rate Estimator (v2.2)</h1>
+      </div>
+      <button type="button" class="icon-btn" id="assumptionsBtn">Assumptions</button>
+    </div>
+
+    <div class="grid">
+      <div class="left-stack">
+        <div class="card left-card">
+<div class="card-head">
+          <h2>Input</h2>
+          <div class="shape-toggle">
+            <button type="button" id="typeRect" class="shape-btn active" title="Rectangular section" aria-label="Rectangular section">▭</button>
+            <button type="button" id="typeCirc" class="shape-btn" title="Circular section" aria-label="Circular section">◯</button>
+          </div>
+        </div>
+
+        <div class="compact-grid">
+          <div class="span-4">
+            <label for="designName">Design/Mark</label>
+            <input id="designName" placeholder="C1" />
+          </div>
+          <div class="span-2">
+            <label for="level">Level</label>
+            <input id="level" placeholder="L03" />
+          </div>
+          <div class="span-2">
+            <label for="fc">f'c (MPa)</label>
+            <input id="fc" type="text" inputmode="numeric" value="50" />
+          </div>
+          <div class="span-2">
+            <label for="storyHeight">Storey H (mm)</label>
+            <input id="storyHeight" type="text" inputmode="numeric" value="3300" />
+          </div>
+          <div class="span-2">
+            <label for="cover">Cover (mm)</label>
+            <input id="cover" type="text" inputmode="numeric" value="40" />
+          </div>
+        </div>
+
+        <div id="rectPanel" class="field-block">
+          <h3>Rectangular section</h3>
+          <div class="compact-grid" style="margin-top:8px;">
+            <div class="span-2">
+              <label for="rectB">Width B</label>
+              <input id="rectB" type="text" inputmode="numeric" value="600" />
+            </div>
+            <div class="span-2">
+              <label for="rectD">Depth D</label>
+              <input id="rectD" type="text" inputmode="numeric" value="600" />
+            </div>
+            <div class="span-4">
+              <label for="barsNx">Bars along width</label>
+              <input id="barsNx" type="text" inputmode="numeric" value="4" />
+            </div>
+            <div class="span-4">
+              <label for="barsNy">Bars along depth</label>
+              <input id="barsNy" type="text" inputmode="numeric" value="4" />
+            </div>
+          </div>
+        </div>
+
+        <div id="circPanel" class="field-block hidden">
+          <h3>Circular section</h3>
+          <div class="compact-grid" style="margin-top:8px;">
+            <div class="span-4">
+              <label for="circDia">Diameter</label>
+              <input id="circDia" type="text" inputmode="numeric" value="600" />
+            </div>
+            <div class="span-4">
+              <label for="circBarCount">Bar positions</label>
+              <input id="circBarCount" type="text" inputmode="numeric" value="12" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field-block">
+          <div class="subhead-line">
+            <h3>Reinforcement</h3>
+            <div id="recalcFlag" class="recalc-flag">Recalculation needed</div>
+          </div>
+          <div class="compact-grid" style="margin-top:6px;">
+            <div class="span-4">
+              <label for="vertBar">Vertical bars</label>
+              <select id="vertBar"></select>
+            </div>
+            <div class="span-4">
+              <label>Bundle</label>
+              <div class="inline-check"><input id="useBundle" type="checkbox" /><span>Bundled x2</span></div>
+            </div>
+            <div class="span-4"></div>
+            <div class="span-3">
+              <label for="ligBar">Ligs</label>
+              <select id="ligBar"></select>
+            </div>
+            <div class="span-3">
+              <label for="ligSpacing">Spacing (mm)</label>
+              <input id="ligSpacing" type="text" inputmode="numeric" value="200" />
+            </div>
+            <div class="span-6"></div>
+            <div class="span-12">
+              <label for="sectionNote">Notes</label>
+              <input id="sectionNote" placeholder="Podium / transfer" />
+            </div>
+          </div>
+        </div>
+
+        <div class="actions-row" style="margin-top:8px;">
+          <button type="button" class="btn btn-primary" id="calcBtn">Calculate</button>
+          <button type="button" class="btn" id="saveBtn">Save</button>
+          <button type="button" class="btn" id="newBtn">Reset</button>
+          <button type="button" class="btn btn-danger" id="clearStoredBtn">Clear saved</button>
+        </div>
+
+        <div id="warningBox" class="warning hidden"></div>
+        </div>
+
+        <div class="card steel-breakdown-panel">
+          <div class="card-head">
+            <h2>Steel breakdown</h2>
+          </div>
+          <div class="table-wrap">
+            <table class="breakdown-table"><tbody id="breakdownSteel"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-stack">
+        <div class="card">
+          <div class="section-head">
+            <h2>Current design result</h2>
+            <div class="tiny">All displayed values use thousands separators.</div>
+          </div>
+          <div class="results-grid">
+            <div class="metric">
+              <div class="k">Total steel</div>
+              <div class="v" id="totalSteelKg">0.00 kg</div>
+            </div>
+            <div class="metric">
+              <div class="k">Rate</div>
+              <div class="v" id="rateKgM3">0.00 kg/m³</div>
+            </div>
+            <div class="metric">
+              <div class="k">Concrete volume</div>
+              <div class="v" id="concVol">0.000 m³</div>
+            </div>
+            <div class="metric">
+              <div class="k">Lig sets</div>
+              <div class="v" id="tieCount">0</div>
+            </div>
+          </div>
+
+          <div class="design-panels">
+            <div class="table-wrap sketch-panel">
+              <div class="section-head" style="margin-bottom:6px;">
+                <h3>Section steel layout</h3>
+                <div class="tiny">Live preview</div>
+              </div>
+              <div id="sectionSketch" class="section-sketch empty">Run a calculation to draw the section.</div>
+              <div class="section-legend">
+                <span class="legend-item"><span class="legend-line"></span> Concrete section</span>
+                <span class="legend-item"><span class="legend-line" style="border-top-color: rgba(37, 99, 235, 0.95);"></span> Ligs</span>
+                <span class="legend-item"><span class="legend-swatch" style="background: #111111;"></span> Longitudinal bars</span>
+                <span class="legend-item"><span class="legend-swatch" style="background: rgba(156, 163, 175, 0.32);"></span> Cover zone</span>
+              </div>
+              <div class="sketch-info-grid" id="sketchSummary">
+                <div class="sketch-info-item"><div class="k">Section</div><div class="v">-</div></div>
+                <div class="sketch-info-item"><div class="k">Vertical bars</div><div class="v">-</div></div>
+                <div class="sketch-info-item"><div class="k">Ligs</div><div class="v">-</div></div>
+                <div class="sketch-info-item"><div class="k">Bundle</div><div class="v">-</div></div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <h3>Steel section data</h3>
+              <table class="breakdown-table"><tbody id="sectionSteel"></tbody></table>
+            </div>
+            <div class="table-wrap">
+              <h3>Geometry and lap / hook data</h3>
+              <table class="breakdown-table"><tbody id="breakdownGeom"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card schedule-card">
+          <div class="schedule-head">
+            <div>
+              <h2>Saved schedule</h2>
+              <div class="tiny">Stored in backend JSON data file.</div>
+            </div>
+            <div class="schedule-tools">
+              <div class="contingency-inline">
+                <label for="contingencyPct">Contingency</label>
+                <select id="contingencyPct">
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="10">10%</option>
+                  <option value="15">15%</option>
+                </select>
+              </div>
+              <div class="contingency-inline">
+                <label for="rateRoundUp">Rate roundup</label>
+                <select id="rateRoundUp">
+                  <option value="0">Off</option>
+                  <option value="5">Next 5</option>
+                  <option value="10">Next 10</option>
+                </select>
+              </div>
+              <div class="export-row">
+                <button type="button" class="btn-mini" id="exportExcelBtn">Export Excel</button>
+                <button type="button" class="btn-mini" id="importExcelBtn">Import Excel</button>
+                <button type="button" class="btn-mini" id="exportCsvBtn">Export CSV</button>
+                <button type="button" class="btn-mini" id="downloadJsonBtn">Export JSON</button>
+                <button type="button" class="btn-mini" id="importJsonBtn">Import JSON</button>
+                <input id="importExcelFile" type="file" accept=".xls,.xml" class="hidden" />
+                <input id="importJsonFile" type="file" accept=".json,application/json" class="hidden" />
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-band">
+            <div class="metric"><div class="k">Saved designs</div><div class="v" id="savedCount">0</div></div>
+            <div class="metric"><div class="k">Total steel</div><div class="v" id="savedSteel">0.00 kg</div></div>
+            <div class="metric"><div class="k">Total concrete</div><div class="v" id="savedConc">0.000 m³</div></div>
+            <div class="metric"><div class="k">Weighted avg. rate</div><div class="v" id="savedRate">0.00 kg/m³</div></div>
+          </div>
+
+          <div class="schedule">
+            <table>
+              <thead>
+                <tr>
+                  <th>Design</th>
+                  <th>Level</th>
+                  <th>Section</th>
+                  <th>f'c</th>
+                  <th>Rate</th>
+                  <th>Vertical bars</th>
+                  <th>Ligs</th>
+                  <th class="right">Steel (kg)</th>
+                  <th class="right">Vol (m³)</th>
+                  <th class="center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="scheduleBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="assumptionsModal" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="assumptionsTitle">
+      <div class="section-head">
+        <h2 id="assumptionsTitle">Assumptions and notes</h2>
+        <button type="button" class="icon-btn" id="closeAssumptionsBtn">Close</button>
+      </div>
+      <p>
+        Rectangular and circular concrete columns. Metric inputs only. Longitudinal steel includes one lap per vertical bar using the uploaded lap table. External and internal ligs/hoops include two 135° fitment hooks per piece using Australian standard hook lengths. Designs are stored in the backend JSON data file and compiled into a schedule. Bundled vertical bars are limited to bundles of 2.
+      </p>
+      <ul>
+        <li>Longitudinal cut length = storey height + one lap per vertical bar from the uploaded lap table.</li>
+        <li>Each lig / hoop / crosstie includes two 135° fitment hooks using Australian standard hook lengths.</li>
+        <li>Hook lengths use the AS 3600 / Australian standard 135° fitment hook dimensions for the selected lig bar size.</li>
+        <li>Lig count along height = ceil(storey height / spacing) + 1 so both ends are included.</li>
+        <li>Rectangular total bar positions = 2(N + M) − 4. If bundled bars are selected, total longitudinal bar count = positions × 2.</li>
+        <li>Rectangular internal ligs per layer = (bars along width − 2) depth-spanning pieces + (bars along depth − 2) width-spanning pieces.</li>
+        <li>Circular columns use one hoop per lig level and no internal ligs. N10 is available for ligs with Australian standard 135° fitment hook lengths.</li>
+        <li>Lap lookup is classified as 40 MPa for 40–49 MPa, 50 MPa for 50–64 MPa, and ≥65 MPa for 65 MPa and above.</li>
+        <li>Bundled bars affect longitudinal steel quantity only and are limited to bundles of 2. Lig geometry still follows the entered bar positions.</li>
+        <li>Excel import reads the exported workbook template and recalculates each imported row before saving.</li>
+        <li>JSON import reads the exported JSON file, recalculates each imported row before saving, and merges by id when present.</li>
+      </ul>
+    </div>
+  </div>
+
+  
+  <script>
+    const APP_VERSION = 'v2.2';
+    let BAR_DATA = {};
+    let VERT_BAR_KEYS = [];
+    let LIG_BAR_KEYS = [];
+    let DEFAULTS = {};
+
+    let currentType = 'rect';
+    let currentEditId = null;
+    let lastResult = null;
+    let savedItems = [];
+
+    const els = {
+      typeRect: document.getElementById('typeRect'),
+      typeCirc: document.getElementById('typeCirc'),
+      assumptionsBtn: document.getElementById('assumptionsBtn'),
+      assumptionsModal: document.getElementById('assumptionsModal'),
+      closeAssumptionsBtn: document.getElementById('closeAssumptionsBtn'),
+      rectPanel: document.getElementById('rectPanel'),
+      circPanel: document.getElementById('circPanel'),
+      warningBox: document.getElementById('warningBox'),
+      designName: document.getElementById('designName'),
+      level: document.getElementById('level'),
+      fc: document.getElementById('fc'),
+      storyHeight: document.getElementById('storyHeight'),
+      cover: document.getElementById('cover'),
+      sectionNote: document.getElementById('sectionNote'),
+      recalcFlag: document.getElementById('recalcFlag'),
+      contingencyPct: document.getElementById('contingencyPct'),
+      rateRoundUp: document.getElementById('rateRoundUp'),
+      rectB: document.getElementById('rectB'),
+      rectD: document.getElementById('rectD'),
+      barsNx: document.getElementById('barsNx'),
+      barsNy: document.getElementById('barsNy'),
+      circDia: document.getElementById('circDia'),
+      circBarCount: document.getElementById('circBarCount'),
+      vertBar: document.getElementById('vertBar'),
+      useBundle: document.getElementById('useBundle'),
+      ligBar: document.getElementById('ligBar'),
+      ligSpacing: document.getElementById('ligSpacing'),
+      calcBtn: document.getElementById('calcBtn'),
+      saveBtn: document.getElementById('saveBtn'),
+      newBtn: document.getElementById('newBtn'),
+      clearStoredBtn: document.getElementById('clearStoredBtn'),
+      exportExcelBtn: document.getElementById('exportExcelBtn'),
+      importExcelBtn: document.getElementById('importExcelBtn'),
+      importExcelFile: document.getElementById('importExcelFile'),
+      exportCsvBtn: document.getElementById('exportCsvBtn'),
+      downloadJsonBtn: document.getElementById('downloadJsonBtn'),
+      importJsonBtn: document.getElementById('importJsonBtn'),
+      importJsonFile: document.getElementById('importJsonFile'),
+      totalSteelKg: document.getElementById('totalSteelKg'),
+      rateKgM3: document.getElementById('rateKgM3'),
+      concVol: document.getElementById('concVol'),
+      tieCount: document.getElementById('tieCount'),
+      sectionSketch: document.getElementById('sectionSketch'),
+      sketchSummary: document.getElementById('sketchSummary'),
+      sectionSteel: document.getElementById('sectionSteel'),
+      breakdownSteel: document.getElementById('breakdownSteel'),
+      breakdownGeom: document.getElementById('breakdownGeom'),
+      scheduleBody: document.getElementById('scheduleBody'),
+      savedCount: document.getElementById('savedCount'),
+      savedSteel: document.getElementById('savedSteel'),
+      savedConc: document.getElementById('savedConc'),
+      savedRate: document.getElementById('savedRate')
+    };
+
+    const NUMERIC_INPUTS = [
+      els.fc, els.storyHeight, els.cover, els.rectB, els.rectD, els.barsNx, els.barsNy,
+      els.circDia, els.circBarCount, els.ligSpacing
+    ];
+
+    function fmt(n, dp = 0) {
+      const num = Number(n);
+      if (!Number.isFinite(num)) return '-';
+      return new Intl.NumberFormat('en-AU', { minimumFractionDigits: dp, maximumFractionDigits: dp }).format(num);
+    }
+
+    function number(val) {
+      const clean = String(val ?? '').replace(/,/g, '').trim();
+      const n = Number(clean);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function integer(val) {
+      return Math.round(number(val));
+    }
+
+    function formatInputValue(input, dp = 0) {
+      const raw = String(input.value ?? '').trim();
+      if (!raw) return;
+      const num = number(raw);
+      if (!Number.isFinite(num)) return;
+      input.value = fmt(num, dp);
+    }
+
+    function setupNumericInputs() {
+      NUMERIC_INPUTS.forEach(input => {
+        input.addEventListener('focus', () => {
+          input.value = String(input.value ?? '').replace(/,/g, '');
+          input.select();
+        });
+        input.addEventListener('blur', () => formatInputValue(input, 0));
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        headers: options.body instanceof FormData ? undefined : { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options,
+      });
+      const contentType = response.headers.get('content-type') || '';
+      let payload;
+      if (contentType.includes('application/json')) {
+        payload = await response.json();
+      } else {
+        payload = await response.text();
+      }
+      if (!response.ok) {
+        const message = payload?.errors?.join(' ') || payload?.message || (typeof payload === 'string' ? payload : 'Request failed.');
+        throw new Error(message);
+      }
+      return payload;
+    }
+
+    async function loadConfig() {
+      const payload = await api('/api/config', { method: 'GET' });
+      BAR_DATA = payload.barData || {};
+      VERT_BAR_KEYS = payload.vertBarKeys || [];
+      LIG_BAR_KEYS = payload.ligBarKeys || [];
+      DEFAULTS = payload.defaults || {};
+      populateBarOptions();
+    }
+
+    function populateBarOptions() {
+      els.vertBar.innerHTML = '';
+      els.ligBar.innerHTML = '';
+      for (const key of VERT_BAR_KEYS) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = key;
+        els.vertBar.appendChild(opt);
+      }
+      for (const key of LIG_BAR_KEYS) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = key;
+        els.ligBar.appendChild(opt);
+      }
+      els.vertBar.value = DEFAULTS.vertBar || 'N20';
+      els.ligBar.value = DEFAULTS.ligBar || 'N12';
+    }
+
+    function showWarning(msg = '') {
+      if (!msg) {
+        els.warningBox.classList.add('hidden');
+        els.warningBox.textContent = '';
+        return;
+      }
+      els.warningBox.textContent = msg;
+      els.warningBox.classList.remove('hidden');
+    }
+
+    function setRecalcNeeded(show) {
+      els.recalcFlag.classList.toggle('show', Boolean(show));
+    }
+
+    function getContingencyFactor() {
+      return 1 + number(els.contingencyPct?.value || 0) / 100;
+    }
+
+    function getRateRoundIncrement() {
+      const val = integer(els.rateRoundUp?.value || 0);
+      return val === 5 || val === 10 ? val : 0;
+    }
+
+    function roundUpToIncrement(value, increment) {
+      const num = Number(value || 0);
+      const step = Number(increment || 0);
+      if (!step || !Number.isFinite(num)) return num;
+      return Math.ceil(num / step) * step;
+    }
+
+    function fcPillClass(fc) {
+      if (fc >= 100) return 'fc-100';
+      if (fc >= 80) return 'fc-80';
+      if (fc >= 65) return 'fc-65';
+      if (fc >= 50) return 'fc-50';
+      return 'fc-40';
+    }
+
+    function strengthBucket(fc) {
+      if (fc >= 65) return 65;
+      if (fc >= 50) return 50;
+      if (fc >= 40) return 40;
+      return null;
+    }
+
+    function setType(type) {
+      currentType = type;
+      const isRect = type === 'rect';
+      els.typeRect.classList.toggle('active', isRect);
+      els.typeCirc.classList.toggle('active', !isRect);
+      els.rectPanel.classList.toggle('hidden', !isRect);
+      els.circPanel.classList.toggle('hidden', isRect);
+    }
+
+    function getFormData() {
+      const useBundle = Boolean(els.useBundle.checked);
+      return {
+        id: currentEditId || undefined,
+        type: currentType,
+        designName: els.designName.value.trim(),
+        level: els.level.value.trim(),
+        fc: number(els.fc.value),
+        storyHeight: number(els.storyHeight.value),
+        cover: number(els.cover.value),
+        sectionNote: els.sectionNote.value.trim(),
+        rectB: number(els.rectB.value),
+        rectD: number(els.rectD.value),
+        barsNx: integer(els.barsNx.value),
+        barsNy: integer(els.barsNy.value),
+        circDia: number(els.circDia.value),
+        circBarCount: integer(els.circBarCount.value),
+        vertBar: els.vertBar.value,
+        useBundle,
+        bundleCount: useBundle ? 2 : 1,
+        ligBar: els.ligBar.value,
+        ligSpacing: number(els.ligSpacing.value)
+      };
+    }
+
+    function row(label, value, valueClass = '') {
+      return `<tr><td>${label}</td><td class="right ${valueClass}">${value}</td></tr>`;
+    }
+
+    function linearPoints(start, end, count) {
+      if (count <= 1) return [start];
+      const pts = [];
+      const step = (end - start) / (count - 1);
+      for (let i = 0; i < count; i++) pts.push(start + i * step);
+      return pts;
+    }
+
+    function bundleOffsets(bundleCount, offset, dirX = 0, dirY = 0) {
+      if (bundleCount <= 1) return [[0, 0]];
+      const mag = Math.hypot(dirX, dirY) || 1;
+      const ux = dirX / mag;
+      const uy = dirY / mag;
+      return [[0, 0], [ux * offset, uy * offset]];
+    }
+
+    function renderBundleBars(cx, cy, barR, bundleCount, fill, dirX = 0, dirY = 0) {
+      const offset = Math.max(6, barR * 2.1);
+      return bundleOffsets(bundleCount, offset, dirX, dirY).map(([dx, dy]) => (
+        `<circle cx="${cx + dx}" cy="${cy + dy}" r="${barR}" fill="${fill}" />`
+      )).join('');
+    }
+
+    function renderInternalVerticalTie(x, yTop, yBot, hookL, stroke, strokeWidth) {
+      return `
+        <line x1="${x}" y1="${yTop}" x2="${x}" y2="${yBot}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" />
+      `;
+    }
+
+    function renderInternalHorizontalTie(xLeft, xRight, y, hookL, stroke, strokeWidth) {
+      return `
+        <line x1="${xLeft}" y1="${y}" x2="${xRight}" y2="${y}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" />
+      `;
+    }
+
+    function renderRectOuterTie(x, y, w, h, hookL, stroke, strokeWidth) {
+      return `
+        <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round" />
+      `;
+    }
+
+    function renderCircularHoop(cx, cy, rTie, hookL, stroke, strokeWidth) {
+      return `
+        <circle cx="${cx}" cy="${cy}" r="${rTie}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" />
+      `;
+    }
+
+    function renderSectionSketch(result) {
+      const size = 360;
+      const margin = 26;
+      const coverFill = 'rgba(156, 163, 175, 0.28)';
+      const concreteStroke = 'rgba(71, 85, 105, 0.70)';
+      const tieStroke = 'rgba(37, 99, 235, 0.95)';
+      const internalStroke = tieStroke;
+      const barFill = '#111111';
+      const titleFill = '#0f172a';
+
+      if (result.type === 'rect') {
+        const scale = Math.min((size - 2 * margin) / result.rectB, (size - 2 * margin) / result.rectD);
+        const grossW = result.rectB * scale;
+        const grossH = result.rectD * scale;
+        const clearW = result.clearB * scale;
+        const clearH = result.clearD * scale;
+        const x0 = (size - grossW) / 2;
+        const y0 = (size - grossH) / 2;
+        const x1 = (size - clearW) / 2;
+        const y1 = (size - clearH) / 2;
+        const baseBarR = Math.max(3.6, Math.min(6.6, BAR_DATA[result.vertBar].d * scale * 0.22));
+        const barR = baseBarR * 2;
+        const tieOffset = Math.max(4, Math.min(14, BAR_DATA[result.ligBar].d * scale * 0.6));
+        const inset = Math.max(barR + tieOffset + 2, 10);
+        const xBar0 = x1 + Math.min(inset, clearW * 0.22);
+        const xBar1 = x1 + clearW - Math.min(inset, clearW * 0.22);
+        const yBar0 = y1 + Math.min(inset, clearH * 0.22);
+        const yBar1 = y1 + clearH - Math.min(inset, clearH * 0.22);
+        const xs = linearPoints(xBar0, xBar1, result.barsNx);
+        const ys = linearPoints(yBar0, yBar1, result.barsNy);
+        const hookL = Math.max(8, Math.min(18, Math.min(clearW, clearH) * 0.08));
+
+        const centerX = x0 + grossW / 2;
+        const centerY = y0 + grossH / 2;
+        const barCircles = [];
+        for (let i = 0; i < xs.length; i++) {
+          barCircles.push(renderBundleBars(xs[i], ys[0], barR, result.bundleCount, barFill, centerX - xs[i], centerY - ys[0]));
+          if (ys.length > 1) barCircles.push(renderBundleBars(xs[i], ys[ys.length - 1], barR, result.bundleCount, barFill, centerX - xs[i], centerY - ys[ys.length - 1]));
+        }
+        for (let j = 1; j < ys.length - 1; j++) {
+          barCircles.push(renderBundleBars(xs[0], ys[j], barR, result.bundleCount, barFill, centerX - xs[0], centerY - ys[j]));
+          if (xs.length > 1) barCircles.push(renderBundleBars(xs[xs.length - 1], ys[j], barR, result.bundleCount, barFill, centerX - xs[xs.length - 1], centerY - ys[j]));
+        }
+
+        const internalLines = [];
+        for (let i = 1; i < xs.length - 1; i++) {
+          internalLines.push(renderInternalVerticalTie(xs[i], y1, y1 + clearH, hookL * 0.75, internalStroke, 2.4));
+        }
+        for (let j = 1; j < ys.length - 1; j++) {
+          internalLines.push(renderInternalHorizontalTie(x1, x1 + clearW, ys[j], hookL * 0.75, internalStroke, 2.4));
+        }
+
+        return `
+          <svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Rectangular column steel layout">
+            <rect x="0" y="0" width="${size}" height="${size}" fill="#ffffff" />
+            <rect x="${x0}" y="${y0}" width="${grossW}" height="${grossH}" fill="${coverFill}" stroke="${concreteStroke}" stroke-width="2.6" />
+            <rect x="${x1}" y="${y1}" width="${clearW}" height="${clearH}" fill="#ffffff" stroke="none" />
+            ${renderRectOuterTie(x1, y1, clearW, clearH, hookL, tieStroke, 2.4)}
+            ${internalLines.join('')}
+            ${barCircles.join('')}
+            <text x="${size / 2}" y="18" text-anchor="middle" fill="${titleFill}" font-size="12.5" font-weight="700">${escapeHtml(result.sectionText)} · cover ${fmt(result.cover, 0)} · ${escapeHtml(result.bundleLabel)}</text>
+          </svg>
+        `;
+      }
+
+      const scale = (size - 2 * margin) / result.circDia;
+      const rGross = result.circDia * scale / 2;
+      const rTie = result.clearDia * scale / 2;
+      const cx = size / 2;
+      const cy = size / 2;
+      const baseBarR = Math.max(3.6, Math.min(6.6, BAR_DATA[result.vertBar].d * scale * 0.22));
+      const barR = baseBarR * 2;
+      const tieOffset = Math.max(4, Math.min(14, BAR_DATA[result.ligBar].d * scale * 0.6));
+      const hookL = Math.max(8, Math.min(18, rTie * 0.14));
+      const rBars = Math.max(rTie - (barR + tieOffset + 3), barR + 6);
+      const bars = [];
+      for (let i = 0; i < result.positionCount; i++) {
+        const ang = -Math.PI / 2 + (2 * Math.PI * i / result.positionCount);
+        const bx = cx + rBars * Math.cos(ang);
+        const by = cy + rBars * Math.sin(ang);
+        bars.push(renderBundleBars(bx, by, barR, result.bundleCount, barFill, cx - bx, cy - by));
+      }
+
+      return `
+        <svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Circular column steel layout">
+          <rect x="0" y="0" width="${size}" height="${size}" fill="#ffffff" />
+          <circle cx="${cx}" cy="${cy}" r="${rGross}" fill="${coverFill}" stroke="${concreteStroke}" stroke-width="2.6" />
+          <circle cx="${cx}" cy="${cy}" r="${rTie}" fill="#ffffff" stroke="none" />
+          ${renderCircularHoop(cx, cy, rTie, hookL, tieStroke, 2.4)}
+          ${bars.join('')}
+          <text x="${size / 2}" y="18" text-anchor="middle" fill="${titleFill}" font-size="12.5" font-weight="700">${escapeHtml(result.sectionText)} · cover ${fmt(result.cover, 0)} · ${escapeHtml(result.bundleLabel)}</text>
+        </svg>
+      `;
+    }
+
+    function renderSketchSummary(result) {
+      els.sketchSummary.innerHTML = `
+        <div class="sketch-info-item"><div class="k">Section</div><div class="v">${escapeHtml(result.sectionText)}</div></div>
+        <div class="sketch-info-item"><div class="k">Vertical bars</div><div class="v">${escapeHtml(result.longCount + '-' + result.vertBar)}</div></div>
+        <div class="sketch-info-item"><div class="k">Ligs</div><div class="v">${escapeHtml(result.ligDesc)}</div></div>
+        <div class="sketch-info-item"><div class="k">Bundle</div><div class="v">${escapeHtml(result.bundleLabel)}</div></div>
+      `;
+    }
+
+    function renderCurrent(result) {
+      if (!result) return;
+      lastResult = result;
+      setRecalcNeeded(false);
+      els.totalSteelKg.textContent = `${fmt(result.totalSteelKg, 2)} kg`;
+      els.rateKgM3.textContent = `${fmt(result.rateKgM3, 2)} kg/m³`;
+      els.concVol.textContent = `${fmt(result.concVolM3, 3)} m³`;
+      els.tieCount.textContent = fmt(result.ligSets, 0);
+
+      const steelRows = [
+        row('Longitudinal bars', `${fmt(result.longMassKg, 2)} kg`),
+        row('Ligs / hoops / crossties', `${fmt(result.ligMassKg, 2)} kg`),
+        row('Total steel', `<strong>${fmt(result.totalSteelKg, 2)} kg</strong>`),
+        row('Concrete volume', `${fmt(result.concVolM3, 3)} m³`),
+        row('Reinforcement rate', `<strong>${fmt(result.rateKgM3, 2)} kg/m³</strong>`)
+      ];
+
+      const sectionSteelRows = [
+        row('Longitudinal bar size', result.vertBar),
+        row('Vertical bar positions', fmt(result.positionCount, 0)),
+        row('Actual vertical bars', `<strong>${fmt(result.longCount, 0)}</strong>`),
+        row('Single bar area', `${fmt(result.vertBarAreaMm2, 0)} mm²`),
+        row('Total longitudinal steel area As', `<strong>${fmt(result.totalVertAreaMm2, 0)} mm²</strong>`),
+        row('Gross concrete area Ag', `${fmt(result.areaMm2, 0)} mm²`),
+        row('Longitudinal steel ratio ρ', `<strong>${fmt(result.steelRatioPct, 2)} %</strong>`),
+        row('Bundle', result.bundleLabel),
+        row('Lig bar size', result.ligBar),
+        row('Lig bar area', `${fmt(result.ligBarAreaMm2, 0)} mm²`),
+        row('Specified cover', `${fmt(result.cover, 0)} mm`)
+      ];
+
+      const geomRows = [
+        row('Section', result.sectionText),
+        row('Shape', result.shape),
+        row('Arrangement', result.arrangementText),
+        row('Concrete strength bucket', `${strengthBucket(result.fc)} MPa`),
+        row('Lap length', `${fmt(result.lapMm, 0)} mm`),
+        row('Hook length', `${fmt(result.hookMm, 0)} mm`),
+        row('Longitudinal cut length', `${fmt(result.longBarLenMm, 0)} mm`),
+        row('Lig sets along height', fmt(result.ligSets, 0))
+      ];
+
+      if (result.type === 'rect') {
+        geomRows.push(
+          row('Clear lig width', `${fmt(result.clearB, 0)} mm`),
+          row('Clear lig depth', `${fmt(result.clearD, 0)} mm`),
+          row('Outer lig length', `${fmt(result.outerLigLenMm, 0)} mm`),
+          row('Depth-span internal ligs / set', fmt(result.internalDepthSpanCount, 0)),
+          row('Width-span internal ligs / set', fmt(result.internalWidthSpanCount, 0)),
+          row('Total lig length / set', `${fmt(result.totalLigLenMmPerSet, 0)} mm`)
+        );
+      } else {
+        geomRows.push(
+          row('Clear hoop diameter', `${fmt(result.clearDia, 0)} mm`),
+          row('Hoop length', `${fmt(result.hoopLenMm, 0)} mm`),
+          row('Internal ligs / set', '0')
+        );
+      }
+
+      els.sectionSketch.innerHTML = renderSectionSketch(result);
+      els.sectionSketch.classList.remove('empty');
+      renderSketchSummary(result);
+      els.sectionSteel.innerHTML = sectionSteelRows.join('');
+      els.breakdownSteel.innerHTML = steelRows.join('');
+      els.breakdownGeom.innerHTML = geomRows.join('');
+    }
+
+    function resetSketchSummary() {
+      els.sketchSummary.innerHTML = `
+        <div class="sketch-info-item"><div class="k">Section</div><div class="v">-</div></div>
+        <div class="sketch-info-item"><div class="k">Vertical bars</div><div class="v">-</div></div>
+        <div class="sketch-info-item"><div class="k">Ligs</div><div class="v">-</div></div>
+        <div class="sketch-info-item"><div class="k">Bundle</div><div class="v">-</div></div>
+      `;
+    }
+
+    function setInput(el, value, dp = 0) {
+      el.value = fmt(value, dp);
+    }
+
+    function resetResultDisplay() {
+      showWarning('');
+      els.totalSteelKg.textContent = '0.00 kg';
+      els.rateKgM3.textContent = '0.00 kg/m³';
+      els.concVol.textContent = '0.000 m³';
+      els.tieCount.textContent = '0';
+      els.sectionSketch.classList.add('empty');
+      els.sectionSketch.innerHTML = 'Run a calculation to draw the section.';
+      resetSketchSummary();
+      els.sectionSteel.innerHTML = '';
+      els.breakdownSteel.innerHTML = '';
+      els.breakdownGeom.innerHTML = '';
+      lastResult = null;
+      setRecalcNeeded(false);
+    }
+
+    function resetForm() {
+      currentEditId = null;
+      els.designName.value = DEFAULTS.designName || '';
+      els.level.value = DEFAULTS.level || '';
+      setInput(els.fc, DEFAULTS.fc ?? 50);
+      setInput(els.storyHeight, DEFAULTS.storyHeight ?? 3300);
+      setInput(els.cover, DEFAULTS.cover ?? 40);
+      els.sectionNote.value = DEFAULTS.sectionNote || '';
+      setInput(els.rectB, DEFAULTS.rectB ?? 600);
+      setInput(els.rectD, DEFAULTS.rectD ?? 600);
+      setInput(els.barsNx, DEFAULTS.barsNx ?? 4);
+      setInput(els.barsNy, DEFAULTS.barsNy ?? 4);
+      setInput(els.circDia, DEFAULTS.circDia ?? 600);
+      setInput(els.circBarCount, DEFAULTS.circBarCount ?? 12);
+      els.vertBar.value = DEFAULTS.vertBar || 'N20';
+      els.useBundle.checked = false;
+      els.ligBar.value = DEFAULTS.ligBar || 'N12';
+      setInput(els.ligSpacing, DEFAULTS.ligSpacing ?? 200);
+      setType(DEFAULTS.type || 'rect');
+      resetResultDisplay();
+    }
+
+    function loadItemIntoForm(item) {
+      currentEditId = item.id;
+      setType(item.type || 'rect');
+      els.designName.value = item.designName || '';
+      els.level.value = item.level || '';
+      setInput(els.fc, item.fc || 50);
+      setInput(els.storyHeight, item.storyHeight || 3300);
+      setInput(els.cover, item.cover || 40);
+      els.sectionNote.value = item.sectionNote || '';
+      setInput(els.rectB, item.rectB || 600);
+      setInput(els.rectD, item.rectD || 600);
+      setInput(els.barsNx, item.barsNx || 4);
+      setInput(els.barsNy, item.barsNy || 4);
+      setInput(els.circDia, item.circDia || 600);
+      setInput(els.circBarCount, item.circBarCount || 12);
+      els.vertBar.value = item.vertBar || 'N20';
+      els.useBundle.checked = Number(item.bundleCount || 1) > 1;
+      els.ligBar.value = item.ligBar || 'N12';
+      setInput(els.ligSpacing, item.ligSpacing || 200);
+      renderCurrent(item);
+      setRecalcNeeded(false);
+    }
+
+    async function calculateCurrent() {
+      const payload = getFormData();
+      const result = await api('/api/calculate', { method: 'POST', body: JSON.stringify(payload) });
+      renderCurrent(result.result);
+      showWarning('');
+      return result.result;
+    }
+
+    async function saveCurrent() {
+      const payload = getFormData();
+      const preservedType = payload.type || currentType;
+      const preservedStoryHeight = payload.storyHeight || number(els.storyHeight.value) || (DEFAULTS.storyHeight ?? 3300);
+      const response = await api('/api/designs', { method: 'POST', body: JSON.stringify(payload) });
+      savedItems = response.items || [];
+      renderSchedule();
+      resetForm();
+      setType(preservedType);
+      setInput(els.storyHeight, preservedStoryHeight);
+      showWarning('');
+    }
+
+    function renderSchedule() {
+      const items = savedItems;
+      if (!items.length) {
+        els.scheduleBody.innerHTML = '<tr><td colspan="10" class="center tiny">No saved designs.</td></tr>';
+        els.savedCount.textContent = '0';
+        els.savedSteel.textContent = '0.00 kg';
+        els.savedConc.textContent = '0.000 m³';
+        els.savedRate.textContent = '0.00 kg/m³';
+        return;
+      }
+
+      const contingencyFactor = getContingencyFactor();
+      const rateRoundIncrement = getRateRoundIncrement();
+      const totalSteel = items.reduce((s, x) => s + Number(x.totalSteelKg || 0) * contingencyFactor, 0);
+      const totalConc = items.reduce((s, x) => s + Number(x.concVolM3 || 0), 0);
+      const avgRateRaw = totalConc > 0 ? totalSteel / totalConc : 0;
+      const avgRate = roundUpToIncrement(avgRateRaw, rateRoundIncrement);
+
+      els.savedCount.textContent = fmt(items.length, 0);
+      els.savedSteel.textContent = `${fmt(totalSteel, 2)} kg`;
+      els.savedConc.textContent = `${fmt(totalConc, 3)} m³`;
+      els.savedRate.textContent = `${fmt(avgRate, 2)} kg/m³`;
+
+      els.scheduleBody.innerHTML = items.map((item, index) => {
+        const displaySteelKg = Number(item.totalSteelKg || 0) * contingencyFactor;
+        const rawRate = Number(item.concVolM3 || 0) > 0 ? displaySteelKg / Number(item.concVolM3 || 0) : 0;
+        const displayRate = roundUpToIncrement(rawRate, rateRoundIncrement);
+        const sectionNote = item.sectionNote ? ` · ${escapeHtml(item.sectionNote)}` : '';
+        const section = `<strong>${escapeHtml(item.sectionText)}</strong><br><span class="tiny">${escapeHtml(item.shape)} · cover ${fmt(item.cover || 0, 0)}${sectionNote}</span>`;
+        const bundleLine = item.bundleCount > 1 ? `<span class="tiny">${escapeHtml(item.bundleLabel || ('bundled x' + item.bundleCount))}</span><br>` : '';
+        const moveUpDisabled = index === 0 ? 'disabled' : '';
+        const moveDownDisabled = index === items.length - 1 ? 'disabled' : '';
+        return `
+          <tr>
+            <td>
+              <div><strong>${escapeHtml(item.designName)}</strong></div>
+              <div class="tiny mono">${escapeHtml(item.savedAt ? item.savedAt.slice(0, 10) : '')}</div>
+            </td>
+            <td>${escapeHtml(item.level)}</td>
+            <td>${section}</td>
+            <td><span class="pill ${fcPillClass(Number(item.fc || 0))}">${fmt(item.fc, 0)} MPa</span></td>
+            <td><strong>${fmt(displayRate, 2)}</strong></td>
+            <td>
+              ${escapeHtml(item.vertDesc)}<br>
+              ${bundleLine}
+              <span class="tiny">Steel = ${fmt(item.steelRatioPct, 2)} %</span>
+            </td>
+            <td>
+              ${escapeHtml(item.ligDesc)}<br>
+              <span class="tiny">Steel = ${fmt(item.ligMassKg, 2)} kg</span>
+            </td>
+            <td class="right">${fmt(displaySteelKg, 2)}</td>
+            <td class="right">${fmt(item.concVolM3, 3)}</td>
+            <td class="center">
+              <div class="actions-inline">
+                <button type="button" class="btn-mini move-btn" onclick="moveDesign('${item.id}', -1)" ${moveUpDisabled} aria-label="Move up" title="Move up">↑</button>
+                <button type="button" class="btn-mini move-btn" onclick="moveDesign('${item.id}', 1)" ${moveDownDisabled} aria-label="Move down" title="Move down">↓</button>
+                <button type="button" class="btn-mini" onclick="editDesign('${item.id}')">Edit</button>
+                <button type="button" class="btn-mini copy-btn" onclick="copyDesign('${item.id}')" aria-label="Copy saved design" title="Copy">📋</button>
+                <button type="button" class="btn-mini btn-danger trash-btn" onclick="deleteDesign('${item.id}')" aria-label="Delete saved design" title="Delete">🗑</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function refreshSchedule() {
+      const response = await api('/api/designs', { method: 'GET' });
+      savedItems = response.items || [];
+      renderSchedule();
+    }
+
+    window.moveDesign = async function(id, direction) {
+      try {
+        const response = await api('/api/designs/reorder', { method: 'POST', body: JSON.stringify({ id, direction }) });
+        savedItems = response.items || [];
+        renderSchedule();
+      } catch (err) {
+        showWarning(err.message || 'Unable to reorder the saved design.');
+      }
+    };
+
+    window.editDesign = function(id) {
+      const item = savedItems.find(x => x.id === id);
+      if (!item) return;
+      loadItemIntoForm(item);
+    };
+
+    window.copyDesign = function(id) {
+      const item = savedItems.find(x => x.id === id);
+      if (!item) return;
+      loadItemIntoForm(item);
+      currentEditId = null;
+      els.designName.value = '';
+      els.level.value = '';
+      resetResultDisplay();
+      setRecalcNeeded(true);
+      showWarning('Copied saved design into the input panel. Enter a new Design/Mark and Level, then calculate or save.');
+    };
+
+    window.deleteDesign = async function(id) {
+      try {
+        const response = await api(`/api/designs/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        savedItems = response.items || [];
+        if (currentEditId === id) resetForm();
+        renderSchedule();
+      } catch (err) {
+        showWarning(err.message || 'Unable to delete the saved design.');
+      }
+    };
+
+    async function uploadImport(url, file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await api(url, { method: 'POST', body: formData });
+      savedItems = response.items || [];
+      renderSchedule();
+      if (savedItems.length) {
+        renderCurrent(savedItems[savedItems.length - 1]);
+      }
+      if (response.skippedCount) {
+        showWarning(`${fmt(response.importedCount || 0, 0)} item(s) imported. ${fmt(response.skippedCount || 0, 0)} item(s) skipped. ${(response.errors || []).join(' | ')}`);
+      } else {
+        showWarning(`${fmt(response.importedCount || 0, 0)} item(s) imported.`);
+      }
+    }
+
+    function openAssumptions() {
+      document.body.classList.add('modal-open');
+      els.assumptionsModal.classList.remove('hidden');
+      els.assumptionsModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeAssumptions() {
+      document.body.classList.remove('modal-open');
+      els.assumptionsModal.classList.add('hidden');
+      els.assumptionsModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function wireEvents() {
+      els.typeRect.addEventListener('click', () => { setType('rect'); setRecalcNeeded(true); });
+      els.typeCirc.addEventListener('click', () => { setType('circ'); setRecalcNeeded(true); });
+      els.assumptionsBtn.addEventListener('click', openAssumptions);
+      els.closeAssumptionsBtn.addEventListener('click', closeAssumptions);
+      els.assumptionsModal.addEventListener('click', (e) => {
+        if (e.target === els.assumptionsModal) closeAssumptions();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !els.assumptionsModal.classList.contains('hidden')) closeAssumptions();
+      });
+      els.calcBtn.addEventListener('click', async () => {
+        try {
+          await calculateCurrent();
+        } catch (err) {
+          showWarning(err.message || 'Calculation failed.');
+        }
+      });
+      els.saveBtn.addEventListener('click', async () => {
+        try {
+          await saveCurrent();
+        } catch (err) {
+          showWarning(err.message || 'Unable to save the design.');
+        }
+      });
+      els.newBtn.addEventListener('click', resetForm);
+      els.clearStoredBtn.addEventListener('click', async () => {
+        if (!window.confirm('Clear all saved designs from this backend data store?')) return;
+        try {
+          const response = await api('/api/designs', { method: 'DELETE' });
+          savedItems = response.items || [];
+          currentEditId = null;
+          renderSchedule();
+          resetForm();
+        } catch (err) {
+          showWarning(err.message || 'Unable to clear the saved schedule.');
+        }
+      });
+      els.exportExcelBtn.addEventListener('click', () => { window.location.href = '/api/export/excel'; });
+      els.exportCsvBtn.addEventListener('click', () => { window.location.href = '/api/export/csv'; });
+      els.downloadJsonBtn.addEventListener('click', () => { window.location.href = '/api/export/json'; });
+      els.importExcelBtn.addEventListener('click', () => els.importExcelFile.click());
+      els.importJsonBtn.addEventListener('click', () => els.importJsonFile.click());
+      els.importExcelFile.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+          await uploadImport('/api/import/excel', file);
+        } catch (err) {
+          showWarning(err.message || 'Excel import failed.');
+        } finally {
+          els.importExcelFile.value = '';
+        }
+      });
+      els.importJsonFile.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+          await uploadImport('/api/import/json', file);
+        } catch (err) {
+          showWarning(err.message || 'JSON import failed.');
+        } finally {
+          els.importJsonFile.value = '';
+        }
+      });
+      els.contingencyPct.addEventListener('change', renderSchedule);
+      els.rateRoundUp.addEventListener('change', renderSchedule);
+
+      [
+        els.designName, els.level, els.fc, els.storyHeight, els.cover, els.sectionNote, els.rectB, els.rectD, els.barsNx, els.barsNy,
+        els.circDia, els.circBarCount, els.vertBar, els.useBundle, els.ligBar, els.ligSpacing
+      ].forEach(el => {
+        el.addEventListener('input', () => setRecalcNeeded(true));
+        el.addEventListener('change', () => setRecalcNeeded(true));
+      });
+    }
+
+    async function init() {
+      setupNumericInputs();
+      wireEvents();
+      await loadConfig();
+      resetForm();
+      await refreshSchedule();
+    }
+
+    init().catch(err => {
+      showWarning(err.message || 'Unable to initialise the application.');
+    });
+  </script>
+
+</body>
+</html>
